@@ -1,0 +1,378 @@
+<!doctype html>
+<head>
+<title>kml-video viewer</title>
+<style>
+</style>
+
+<!-- moment  -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.10.6/moment.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/moment-timezone/0.5.0/moment-timezone-with-data-2010-2020.min.js"></script>
+<!-- jquery -->
+<script src="https://code.jquery.com/jquery-1.11.2.min.js"></script>
+<!-- google map -->
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDImbFaS9FHk8X1-bDsV5UwjCCt2rSO3C0&signed_in=true"></script>
+<!-- mithril -->
+<script src="//cdnjs.cloudflare.com/ajax/libs/mithril/0.2.2-rc.1/mithril.min.js"></script>
+<!-- bootstrap -->
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" integrity="sha384-1q8mTJOASx8j1Au+a5WDVnPi2lkFfwwEAa8hDDdjZlpLegxhjVME1fgjWPGmkzs7" crossorigin="anonymous">
+<!-- bootstrap -->
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js" integrity="sha384-0mSbJDEHialfmuBBQP6A4Qrprq5OVfW37PRR3j5ELqxss1yVqOtnepnHVP9aJ7xS" crossorigin="anonymous"></script>
+
+<!-- video.js -->
+<link href="https://vjs.zencdn.net/5.4.4/video-js.css" rel="stylesheet">
+<!-- video.js -->
+<script src="https://vjs.zencdn.net/5.4.4/video.js"></script>
+
+</head>
+
+<body>
+<div class="container">
+    <div class="row">
+        <div class="col-md-6" id="kml_filepickup"></div>
+        <div class="col-md-6" id="video_filepickup"></div>
+    </div>
+    <div class="row">
+        <div class="col-md-6" id="map_container"></div>
+        <div class="col-md-6" id="video_container"></div>
+    </div>
+</div>
+
+<script>
+//TODO: フォルダへの対応、modelからvmへ
+// 参考
+// http://mithril-ja.js.org/mithril.html
+// http://programming-blues.hatenablog.com/entry/FileInfoApp
+// https://developers.google.com/maps/documentation/javascript/examples/layer-kml
+
+"use strict";
+
+var MOMENT_FORMAT_STRING = 'YYYY-MM-DD HH:mm:ss';
+
+var kmlfilepickup = {
+    files : m.prop([])
+};
+kmlfilepickup.controller = function(){
+    return {
+        onchange : function(e){
+            var list = [];
+            for(var i = 0; i < e.target.files.length; i++){    
+                list.push(e.target.files[i]);
+            } 
+            kmlfilepickup.files(list);
+            map.controller().readkmlfiles(kmlfilepickup.files());
+        },
+        clear : function(){
+            kmlfilepickup.files([]);
+            map.controller().clear();
+        },
+        setCenter : function(file){
+            map.controller().setCenter(file);
+        }
+    };
+};
+kmlfilepickup.view = function(ctrl){
+    return m("div", [
+        m("b", {}, "kml: "),
+        m("input",{
+            type : "file",
+            name : "file",
+            accept : "text/*",
+            multiple : true,
+            // webkitdirectory: true,
+            // directory : true,
+            onchange : ctrl.onchange
+        }),
+        m("ol", {
+            style : {
+                "overflow" : "auto",
+                "height" : "100px"
+            }
+        },
+            kmlfilepickup.files().map(function(file, index){
+                return m("li", {
+                    onclick : function(){ ctrl.setCenter(file);  }
+                }, file.name || file);
+            })
+        ),
+        m("button", {
+            onclick: ctrl.clear
+        }, "clear")
+    ]);
+}
+
+var videofilepickup = {
+    files : m.prop([])
+};
+videofilepickup.controller = function(){
+    return {
+        onchange : function(e){
+            var list = [];
+            for(var i = 0; i < e.target.files.length; i++){    
+                list.push(e.target.files[i]);
+            }   
+            videofilepickup.files(list);
+            video.controller().setsrc(videofilepickup.files()[0]);
+        },
+        onclickItem : function(file){
+            video.controller().setsrc(file);
+        },
+        clear : function(){
+            videofilepickup.files([]);
+        }
+    };
+};
+videofilepickup.view = function(ctrl){
+    return m("div", [
+        m("b", {}, "video: "),
+        m("input", {
+            type: "file",
+            name: "file",
+            accept : "video/*",
+            multiple : true,
+            // webkitdirectory: true,
+            // directory : true,
+            onchange : ctrl.onchange
+        }),
+        m("ol",{
+            style : {
+                "overflow" : "auto",
+                "height" : "100px"
+            }
+        }, videofilepickup.files().map(function(file, index){
+            return m("li", {
+                onclick : function(){ ctrl.onclickItem(file) }
+            }, file.name);
+        })),
+        m("button", {
+            onclick: ctrl.clear
+        }, "clear")
+    ]);
+}
+
+
+var map = {
+    map : m.prop(),
+    when : m.prop($([])),
+    markers : m.prop($([])),
+    polylines : m.prop($([])),
+    fileMarker : m.prop({}),
+    pointIndex : m.prop(0)
+};
+map.controller = function(){
+    return {
+        createMap : function(element){
+            map.map(new google.maps.Map(element, {
+                zoom: 17,
+                center: {lat: 34.9811345, lng: 135.9642496}
+            }));
+        },
+        clear : function(){
+            $.each(map.polylines(), function(i,p){p.setMap(null);});
+            $.each(map.markers(), function(i,m){m.setMap(null);});
+        },
+        setCenter : function(file){
+            var center = map.fileMarker()[file.name];
+            map.map().setCenter(center);
+        },
+        moveCenter : function(date){
+            var now = moment(date * 1000).tz("Asia/Tokyo");
+            var minDiff = Number.MAX_VALUE;
+            var minIndex = 0;
+            map.when().each(function(i, j){
+                var diff = now.diff(j);
+                if(minDiff > Math.abs(diff) ){
+                    minDiff = Math.abs(diff);
+                    minIndex = i;
+                }else if( minDiff != Number.MAX_VALUE ){
+                    return true;
+                }
+            });
+            if(map.pointIndex() != minIndex){
+                map.map().setCenter(map.markers()[minIndex].getPosition());
+                map.pointIndex(minIndex);
+            }
+        },
+        readkmlfiles : function (files){
+            files.map(function(file, idx){
+                var fileurl = (typeof(file) == "string") ? file : window.URL.createObjectURL(file);
+                $.get(fileurl, function(kmlData){
+                    //data = kmlData;
+                    //console.log(kmlData);
+                    var center = readkml(kmlData);   
+                    map.map().setCenter(center);
+                    map.fileMarker()[file.name] = center;
+                });
+            });
+            function readkml(kmlData){
+                // 時刻
+                var when = $(kmlData).find("when").map(function(index, date){
+                    return moment.tz($(date).text(), MOMENT_FORMAT_STRING, "UTC").tz("Asia/Tokyo")
+                });
+                map.when(when);
+                // 緯度経度
+                var coord = $(kmlData).find("gx\\:coord").map(function(index, c){ 
+                    return [$(c).text().split(" ")];
+                });
+                // marker
+                var points = coord.map(function(index, obj){
+                    var lng = obj[0], lat = obj[1], altitude = obj[2];
+                    var latlng = new google.maps.LatLng(lat, lng);
+                    var marker = new google.maps.Marker({
+                        position: latlng,
+                        map: map.map(),
+                        title: when[index].format(MOMENT_FORMAT_STRING),
+                    });
+                    marker.addListener('click', function() {
+                        video.controller().search(when[index]);
+                    });
+                    //console.log(marker);
+                    map.markers().push(marker);
+                    return latlng;
+                });
+                // polyline
+                var line = new google.maps.Polyline({
+                    path: points,
+                    map: map.map(),
+                });
+                map.polylines().push(line);
+                //console.log(points, when, coord, line);
+                
+                return points[0] || map.map().getCenter();
+            }
+        },
+    };
+};
+map.view = function(ctrl){
+    return m("div", { 
+        config : function(element, isInitialized, context){
+            if(!isInitialized){
+                ctrl.createMap(element);
+            }
+        },
+        style : {
+            height: "300px"
+        }
+    });
+};
+
+var video = {
+    timestamp : m.prop( 0 ),
+    currentDate : m.prop( moment().unix() ),
+    file : m.prop( ),
+    offset : m.prop( 0 ),
+    player : m.prop()
+};
+video.controller = function(){
+    return {
+        setPlayer : function(element){
+            video.player(videojs(element));
+        },
+        playAndPause : function(){
+            var myPlayer = video.player(); //videojs("videoplayer");
+            myPlayer.paused() ? myPlayer.play() : myPlayer.pause();
+        },
+        search : function(when){
+            var seektime, seekfile;
+            $.each(videofilepickup.files(), function(index, file){
+                var startDate = video.controller().culcStartDate(file);
+                var diff = when.diff(startDate);
+                if(diff < 0){
+                    return true;
+                }
+                if(seektime == undefined || seektime > diff){
+                    seektime = diff;
+                    seekfile = file;
+                }
+            });
+
+            if(seektime != undefined){
+                video.controller().setsrc(seekfile);
+                video.controller().seek(seektime / 1000);
+                video.player().play();
+            }
+        },
+        seek : function(sec){
+            var myPlayer = video.player();
+            if(myPlayer.seekable().length == 0){
+                console.log("not loaded");
+            }else if(sec < myPlayer.seekable().start(0)){
+                console.log("before");
+            }else if( myPlayer.seekable().end(0) < sec){
+                console.log("after");
+            }else {
+                myPlayer.currentTime(sec);
+            }
+        },
+        culcStartDate : function(file){
+            var lastModified = moment(file.lastModified).format("YYYY-MM-DD");
+            var time = moment(file.name.match(/\d\d\d\d/)[0], "HHmm").format("HH:mm");
+            var s = moment(lastModified + " " + time, MOMENT_FORMAT_STRING);
+            var d = s.add(parseInt(video.offset()), "s");
+            return d;
+        },
+        setsrc : function(file){
+            if(file == video.file()){
+                return;
+            }
+            video.file(file);
+            video.currentDate(video.controller().culcStartDate(file));
+            video.player().src({
+                "type":"video/mp4",
+                "src" : window.URL.createObjectURL(file)
+            }).ready(function(){
+                this.play();
+            });
+        },
+        next : function(){
+            var onplayedIndex = $.inArray(video.file(), videofilepickup.files());
+            var index = (onplayedIndex + 1) % videofilepickup.files().length;
+            video.controller().setsrc( videofilepickup.files()[index] );
+        },
+        ontimeupdate : function(e){
+            video.timestamp(this.currentTime);
+            video.currentDate( video.controller().culcStartDate(video.file()).add(video.timestamp(), "s").unix() );
+            map.controller().moveCenter(video.currentDate());
+        }
+    }
+};
+video.view = function(ctrl){
+    return m( '.video', [
+        m( 'video#videoplayer', {
+            config : function(element, isInitialized, context){
+                if(!isInitialized){
+                    ctrl.setPlayer(element);
+                }
+            }, 
+            class : "video-js",
+            controls : true,
+            preload : "auto",
+            "data-setup" : "{}",
+            ontimeupdate : ctrl.ontimeupdate, 
+            onended : ctrl.next,
+            style : {
+                width: "100%",
+                height: "300px"
+            }
+        } ),
+        m( 'div', [
+            'Time elapsed: ',
+                parseInt(video.timestamp()),
+            ' currentTime: ', 
+                moment.unix(video.currentDate()).format(MOMENT_FORMAT_STRING),
+            ' offset: ', 
+            m('input[type=number]', {
+                style : { width: "50px" },
+                onchange : m.withAttr( "value", video.offset ),
+                //value : video.offset(),
+            } )
+        ]),
+    ] );
+}
+
+m.mount(document.getElementById( 'video_filepickup' ),  videofilepickup );
+m.mount(document.getElementById( 'kml_filepickup' ),  kmlfilepickup );
+m.mount(document.getElementById( 'video_container' ),  video );
+m.mount(document.getElementById( 'map_container' ),  map );
+
+</script>
+</body>
