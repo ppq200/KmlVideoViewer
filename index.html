@@ -5,23 +5,23 @@
 </style>
 
 <!-- moment  -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.10.6/moment.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/moment-timezone/0.5.0/moment-timezone-with-data-2010-2020.min.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/moment.js/2.10.6/moment.min.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/moment-timezone/0.5.0/moment-timezone-with-data-2010-2020.min.js"></script>
 <!-- jquery -->
-<script src="https://code.jquery.com/jquery-1.11.2.min.js"></script>
+<script src="//code.jquery.com/jquery-1.11.2.min.js"></script>
 <!-- google map -->
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDImbFaS9FHk8X1-bDsV5UwjCCt2rSO3C0&signed_in=true"></script>
+<script src="//maps.googleapis.com/maps/api/js?key=AIzaSyDImbFaS9FHk8X1-bDsV5UwjCCt2rSO3C0&signed_in=true"></script>
 <!-- mithril -->
 <script src="//cdnjs.cloudflare.com/ajax/libs/mithril/0.2.2-rc.1/mithril.min.js"></script>
 <!-- bootstrap -->
-<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" integrity="sha384-1q8mTJOASx8j1Au+a5WDVnPi2lkFfwwEAa8hDDdjZlpLegxhjVME1fgjWPGmkzs7" crossorigin="anonymous">
+<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" integrity="sha384-1q8mTJOASx8j1Au+a5WDVnPi2lkFfwwEAa8hDDdjZlpLegxhjVME1fgjWPGmkzs7" crossorigin="anonymous">
 <!-- bootstrap -->
-<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js" integrity="sha384-0mSbJDEHialfmuBBQP6A4Qrprq5OVfW37PRR3j5ELqxss1yVqOtnepnHVP9aJ7xS" crossorigin="anonymous"></script>
+<script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js" integrity="sha384-0mSbJDEHialfmuBBQP6A4Qrprq5OVfW37PRR3j5ELqxss1yVqOtnepnHVP9aJ7xS" crossorigin="anonymous"></script>
 
 <!-- video.js -->
-<link href="https://vjs.zencdn.net/5.4.4/video-js.css" rel="stylesheet">
+<link href="//vjs.zencdn.net/5.4.4/video-js.css" rel="stylesheet">
 <!-- video.js -->
-<script src="https://vjs.zencdn.net/5.4.4/video.js"></script>
+<script src="//vjs.zencdn.net/5.4.4/video.js"></script>
 
 </head>
 
@@ -162,8 +162,8 @@ map.controller = function(){
     return {
         createMap : function(element){
             map.map(new google.maps.Map(element, {
-                zoom: 17,
-                center: {lat: 34.9811345, lng: 135.9642496}
+                zoom: 10,
+                center: {lat: 34.985849, lng: 135.758767}
             }));
         },
         clear : function(){
