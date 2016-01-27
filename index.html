@@ -158,6 +158,8 @@ var map = {
     fileMarker : m.prop({}),
     pointIndex : m.prop(0)
 };
+
+// var dd;
 map.controller = function(){
     return {
         createMap : function(element){
@@ -196,21 +198,24 @@ map.controller = function(){
             files.map(function(file, idx){
                 var fileurl = (typeof(file) == "string") ? file : window.URL.createObjectURL(file);
                 $.get(fileurl, function(kmlData){
-                    //data = kmlData;
-                    //console.log(kmlData);
                     var center = readkml(kmlData);   
                     map.map().setCenter(center);
                     map.fileMarker()[file.name] = center;
                 });
             });
             function readkml(kmlData){
+                // dd = kmlData;
                 // 時刻
                 var when = $(kmlData).find("when").map(function(index, date){
                     return moment.tz($(date).text(), MOMENT_FORMAT_STRING, "UTC").tz("Asia/Tokyo")
                 });
                 map.when(when);
                 // 緯度経度
-                var coord = $(kmlData).find("gx\\:coord").map(function(index, c){ 
+                var coordData = $(kmlData).find("gx\\:coord"); // win? 
+                if( coordData.length == 0 ){
+                    coordData = $(kmlData).find("coord"); // mac? 要検証
+                }
+                var coord = coordData.map(function(index, c){ 
                     return [$(c).text().split(" ")];
                 });
                 // marker
@@ -225,7 +230,6 @@ map.controller = function(){
                     marker.addListener('click', function() {
                         video.controller().search(when[index]);
                     });
-                    //console.log(marker);
                     map.markers().push(marker);
                     return latlng;
                 });
@@ -234,9 +238,7 @@ map.controller = function(){
                     path: points,
                     map: map.map(),
                 });
-                map.polylines().push(line);
-                //console.log(points, when, coord, line);
-                
+                map.polylines().push(line);                
                 return points[0] || map.map().getCenter();
             }
         },
