@@ -61,10 +61,19 @@ var kmlfilepickup = {
 kmlfilepickup.controller = function(){
     return {
         onchange : function(e){
-            var list = [];
+            //var list = [];
+            var list = kmlfilepickup.files();
             for(var i = 0; i < e.target.files.length; i++){    
                 list.push(e.target.files[i]);
             } 
+            list.sort(function(a, b){
+                if(a.lastModified < b.lastModified){
+                    return -1;
+                }else if(a.lastModified > b.lastModified){
+                    return 1
+                }
+                return 0;
+            });
             kmlfilepickup.files(list);
             map.controller().readkmlfiles(kmlfilepickup.files());
         },
@@ -113,10 +122,19 @@ var videofilepickup = {
 videofilepickup.controller = function(){
     return {
         onchange : function(e){
-            var list = [];
+            //var list = [];
+            var list = videofilepickup.files();
             for(var i = 0; i < e.target.files.length; i++){    
                 list.push(e.target.files[i]);
-            }   
+            }
+            list.sort(function(a, b){
+                if(a.lastModified < b.lastModified){
+                    return -1;
+                }else if(a.lastModified > b.lastModified){
+                    return 1
+                }
+                return 0;
+            });
             videofilepickup.files(list);
             video.controller().setsrc(videofilepickup.files()[0]);
         },
@@ -363,11 +381,13 @@ video.view = function(ctrl){
             }
         } ),
         m( 'div', [
-            'Time elapsed: ',
-                parseInt(video.timestamp()),
-            ' currentTime: ', 
-                moment.unix(video.currentDate()).format(MOMENT_FORMAT_STRING),
-            ' offset: ', 
+            m( 'span', 'Time elapsed: '),
+            m( 'span', parseInt(video.timestamp()) ),
+            m( 'span', ' currentTime: '), 
+            m( 'span', {
+                onclick : function(){  } 
+            }, moment.unix(video.currentDate()).format(MOMENT_FORMAT_STRING) ),
+            m( 'span', ' offset: '),
             m('input[type=number]', {
                 style : { width: "50px" },
                 onchange : m.withAttr( "value", video.offset ),
